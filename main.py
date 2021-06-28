@@ -29,8 +29,8 @@ configs = {
 }
 
 transform = transforms.Compose([
-    transforms.RandomRotation((-7, 7)),
-    transforms.RandomHorizontalFlip(p=0.25)
+    # transforms.RandomRotation((-7, 7)),
+    # transforms.RandomHorizontalFlip(p=0.25)
 ])
 
 def seed_everything(seed: int):
