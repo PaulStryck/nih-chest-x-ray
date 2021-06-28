@@ -7,7 +7,7 @@ import torch
 from sklearn.metrics import roc_auc_score
 from torch.nn import Module
 from torch.nn.modules.loss import _Loss
-from torch.optim.lr_scheduler import _LRScheduler
+from torch.optim.lr_scheduler import _LRScheduler, ReduceLROnPlateau
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 
@@ -188,8 +188,10 @@ def run(device: str,
         print('ROC_AUC_SCORE: {}'.format(roc))
         print('AVG Loss in validation set: {}'.format(avg_loss))
 
-        # when using ReduceLROnPlateau
-        scheduler.step(avg_loss)
+        if isinstance(scheduler, ReduceLROnPlateau):
+            scheduler.step(avg_loss)
+        else:
+            scheduler.step()
 
         # when using scheduler unaware of loss
         # scheduler.step()
