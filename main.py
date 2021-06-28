@@ -25,6 +25,7 @@ configs = {
         'lr': 0.0001,
         'factor': 0.25,
         'patience': 2
+    }
 }
 
 transform = transforms.Compose([
