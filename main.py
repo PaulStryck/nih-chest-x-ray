@@ -22,9 +22,15 @@ configs = {
         'epochs': 10
     },
     'ft_resnet_50_adam_redplat': {
-        'lr': 0.0001,
+        'lr': 0.00005,
+        'epochs': 10,
         'factor': 0.25,
         'patience': 2
+    },
+    'ft_resnet_50_adam_exponential': {
+        'lr': 0.0001,
+        'epochs': 10,
+        'factor': 0.1
     }
 }
 
@@ -32,6 +38,8 @@ transform = transforms.Compose([
     # transforms.RandomRotation((-7, 7)),
     # transforms.RandomHorizontalFlip(p=0.25)
 ])
+
+transform = None
 
 def seed_everything(seed: int):
     os.environ['PYTHONHASHSEED'] = str(seed)
@@ -47,6 +55,53 @@ def test_model():
                                      transform = transform)
     test_loader  = torch.utils.data.DataLoader(data_test,
                                                batch_size=args.test_bs)
+
+def ft_resnet_50_adam_exponential(
+    config,
+    device: str,
+    log_interval: int,
+    save_interval: int,
+    out_path: str,
+    train_loader,
+    val_loader,
+    seed: int
+):
+    seed_everything(seed)
+
+    model = net.get_model(len(ChestXRayNPYDataset.labels))
+    model_path = os.path.join(out_path, 'models')
+    eval_path = os.path.join(out_path, 'eval')
+
+    if not os.path.exists(out_path):
+        os.mkdir(out_path)
+
+    # Print Network and training info
+    summary(model, input_size=(1, 3, 244, 244))
+    print('Using device: {}'.format(device))
+
+    trainer.criterion_t = nn.BCEWithLogitsLoss()
+    trainer.criterion_v = nn.BCEWithLogitsLoss()
+
+    trainer.optimizer  = optim.Adam(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr = config['lr']
+    )
+    trainer.scheduler = optim.lr_scheduler.ExponentialLR(
+        trainer.optimizer,
+        gamma = config['gamma']
+    )
+
+    # Run the training
+    trainer.run(device        = device,
+                model         = model,
+                train_loader  = train_loader,
+                val_loader    = val_loader,
+                epochs        = config['epochs'],
+                log_interval  = log_interval,
+                save_interval = save_interval,
+                labels        = ChestXRayNPYDataset.labels,
+                model_dir     = model_path,
+                stage         = '0')
 
 def ft_resnet_50_adam_redplat(
     config,
@@ -151,6 +206,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data-train', type = str)
     parser.add_argument('--data-test', type = str)
+    parser.add_argument('--runs', nargs='+', type = int)
     parser.add_argument('--save-path', type = str, help = 'Path to store models')
     parser.add_argument('--test-bs', type = int, default = 64, help = 'test batch size')
     parser.add_argument('--val-bs', type = int, default = 64, help = 'val batch size')
@@ -163,6 +219,7 @@ def main():
     parser.add_argument('--val-id', type=int, default=0, help='Which fold id to use for test/val split')
     parser.add_argument('--seed', type=int, default=0, help='Seed the random generator to get reproducability')
     args = parser.parse_args()
+    print(args.runs)
 
     # Use exactly the supplied device. No error handling whatsoever
     device = torch.device(args.device)
@@ -188,26 +245,39 @@ def main():
                                                collate_fn = collate.cf,
                                                sampler    = RandomSampler(range(len(data_train))))
 
+    
+    if 0 in args.runs:
+        ft_resnet_50_adam_steplr(config = configs['ft_resnet_50_adam_steplr'],
+                                 device = device,
+                                 log_interval = args.log_interval,
+                                 save_interval = args.save_interval,
+                                 out_path = os.path.join(args.save_path,
+                                                         'resnet_50_adam_steplr'),
+                                 train_loader = train_loader,
+                                 val_loader = val_loader,
+                                 seed = args.seed)
 
-    ft_resnet_50_adam_steplr(config = configs['ft_resnet_50_adam_steplr'],
-                             device = device,
-                             log_interval = args.log_interval,
-                             save_interval = args.save_interval,
-                             out_path = os.path.join(args.save_path,
-                                                     'resnet_50_adam_steplr'),
-                             train_loader = train_loader,
-                             val_loader = val_loader,
-                             seed = args.seed)
-
-    ft_resnet_50_adam_redplat(config = configs['ft_resnet_50_adam_redplat'],
-                              device = device,
-                              log_interval = args.log_interval,
-                              save_interval = args.save_interval,
-                              out_path = os.path.join(args.save_path,
-                                                      'resnet_50_adam_redplat'),
-                              train_loader = train_loader,
-                              val_loader = val_loader,
-                              seed = args.seed)
+    if 1 in args.runs:
+        ft_resnet_50_adam_redplat(config = configs['ft_resnet_50_adam_redplat'],
+                                  device = device,
+                                  log_interval = args.log_interval,
+                                  save_interval = args.save_interval,
+                                  out_path = os.path.join(args.save_path,
+                                                          'resnet_50_adam_redplat'),
+                                  train_loader = train_loader,
+                                  val_loader = val_loader,
+                                  seed = args.seed)
+    
+    if 2 in args.runs:
+        ft_resnet_50_adam_exponential(config = configs['ft_resnet_50_adam_exponential'],
+                                      device = device,
+                                      log_interval = args.log_interval,
+                                      save_interval = args.save_interval,
+                                      out_path = os.path.join(args.save_path,
+                                                              'resnet_50_adam_exponential'),
+                                      train_loader = train_loader,
+                                      val_loader = val_loader,
+                                      seed = args.seed)
 
 if __name__ == "__main__":
     main()
