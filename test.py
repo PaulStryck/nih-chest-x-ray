@@ -2,7 +2,9 @@ from modules.dataset import ChestXRayImages
 import argparse
 from modules import dataset
 from pprint import pp
-from main import seed_everything
+from modules.utils import seed_everything
+from torch.utils.data.sampler import WeightedRandomSampler
+from modules.sampler import weights
 import termplotlib as tpl
 
 
@@ -93,17 +95,20 @@ def main_folds():
 
     data       = dataset.ChestXRayNPYDataset(file      = args.data_train,
                                              transform = None)
+
     for val_id in range(5):
         split      = dataset.k_fold_split_patient_aware(dataset = data,
                                                         folds   = 5,
                                                         val_id  = val_id)
         data_val, data_train  = split
+        sampler_train = WeightedRandomSampler(weights(data_train), len(data_train))
         combined_val_targets  = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
         combined_train_targets = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
         for _, t in data_val:
             combined_val_targets = [sum(x) for x in zip(combined_val_targets, t)]
 
-        for _, t in data_train:
+        for idx in sampler_train:
+            _, t = data_train[idx]
             combined_train_targets = [sum(x) for x in zip(combined_train_targets, t)]
 
         fig_1 = tpl.figure()
