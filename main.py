@@ -6,11 +6,13 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data.sampler import RandomSampler
+from torch.utils.data.sampler import WeightedRandomSampler
 from torchinfo import summary
 from torchvision import transforms
 
+from modules.utils import seed_everything
 from modules import collate, dataset, loss, net, trainer
+from modules.sampler import weights
 from modules.dataset import (ChestXRayImageDataset, ChestXRayImages,
                              ChestXRayNPYDataset)
 
@@ -45,7 +47,12 @@ configs = {
         { 'lr': 1e-3,
            'epochs': 3,
            'step_size': 2}
-        ]
+        ],
+    'ft_effnet_b7_adam_exponential': {
+        'lr': 0.0001,
+        'epochs': 10,
+        'gamma': 0.1
+    }
 }
 
 # transform = transforms.Compose([
@@ -60,15 +67,6 @@ def transform(x: np.ndarray):
     return x
 
 
-def seed_everything(seed: int):
-    os.environ['PYTHONHASHSEED'] = str(seed)
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = True
-
 def test_model(model, model_weights_path, test_loader, device):
     model.load_state_dict(torch.load(model_weights_path))
 
@@ -79,6 +77,54 @@ def test_model(model, model_weights_path, test_loader, device):
                       epochs_till_now = 0,
                       final_epoch = 0,
                       log_interval = 20)
+
+def ft_effnet_b7_adam_exponential(
+    config,
+    device: str,
+    log_interval,
+    save_interval: int,
+    out_path: str,
+    train_loader,
+    val_loader,
+    seed: int
+):
+    seed_everything(seed)
+
+    model = net.get_effnet(len(ChestXRayNPYDataset.labels))
+    model_path = os.path.join(out_path, 'models')
+    eval_path = os.path.join(out_path, 'eval')
+
+    if not os.path.exists(out_path):
+        os.mkdir(out_path)
+
+    # Print Network and training info
+    summary(model, input_size=(1, 3, 244, 244))
+    print('Using device: {}'.format(device))
+
+    trainer.criterion_t = nn.BCEWithLogitsLoss()
+    trainer.criterion_v = nn.BCEWithLogitsLoss()
+
+    trainer.optimizer  = optim.Adam(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr = config['lr']
+    )
+    trainer.scheduler = optim.lr_scheduler.ExponentialLR(
+        trainer.optimizer,
+        gamma = config['gamma']
+    )
+
+    # Run the training
+    trainer.run(device        = device,
+                model         = model,
+                train_loader  = train_loader,
+                val_loader    = val_loader,
+                epochs        = config['epochs'],
+                log_interval  = log_interval,
+                save_interval = save_interval,
+                labels        = ChestXRayNPYDataset.labels,
+                model_dir     = model_path,
+                stage         = '0')
+
 def ft_resnet_50_adam_steplr_staged(
     config,
     device: str,
@@ -411,7 +457,8 @@ def main():
     train_loader = torch.utils.data.DataLoader(data_train,
                                                batch_size = args.train_bs,
                                                collate_fn = collate.cf,
-                                               sampler    = RandomSampler(range(len(data_train))))
+                                               sampler    = WeightedRandomSampler(weights(data_train),
+                                                                                  len(data_train))
 
 
     if 0 in args.runs:
@@ -457,6 +504,18 @@ def main():
                                       save_interval = args.save_interval,
                                       out_path = os.path.join(args.save_path,
                                                               'resnet_50_adam_exponential'),
+                                      train_loader = train_loader,
+                                      val_loader = val_loader,
+                                      seed = args.seed)
+
+    if 4 in args.runs:
+        print("Effnet b7 adam exponential")
+        ft_effnet_b7_adam_exponential(config = configs['ft_effnet_b7_adam_exponential'],
+                                      device = device,
+                                      log_interval = args.log_interval,
+                                      save_interval = args.save_interval,
+                                      out_path = os.path.join(args.save_path,
+                                                              'effnet_b7_adam_exponential'),
                                       train_loader = train_loader,
                                       val_loader = val_loader,
                                       seed = args.seed)
