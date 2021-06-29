@@ -19,27 +19,40 @@ configs = {
         'lr': 0.0001,
         'step_size': 2,
         'gamma': 0.5,
-        'epochs': 10
+        'epochs': 5
     },
     'ft_resnet_50_adam_redplat': {
         'lr': 0.00005,
-        'epochs': 10,
+        'epochs': 5,
         'factor': 0.25,
         'patience': 2
     },
     'ft_resnet_50_adam_exponential': {
         'lr': 0.0001,
         'epochs': 10,
-        'factor': 0.1
-    }
+        'gamma': 0.1
+    },
+    'ft_resnet_50_adam_steplr_staged': [
+        { 'lr': 1e-4,
+           'epochs': 2,
+           'step_size': 2},
+        { 'lr': 1e-4,
+           'epochs': 5,
+           'step_size': 2},
+        { 'lr': 5e-4,
+           'epochs': 4,
+           'step_size': 2},
+        { 'lr': 1e-3,
+           'epochs': 3,
+           'step_size': 2}
+        ]
 }
 
 transform = transforms.Compose([
-    # transforms.RandomRotation((-7, 7)),
-    # transforms.RandomHorizontalFlip(p=0.25)
+     transforms.RandomRotation((-7, 7)),
+     transforms.RandomHorizontalFlip(p=0.25)
 ])
 
-transform = None
 
 def seed_everything(seed: int):
     os.environ['PYTHONHASHSEED'] = str(seed)
@@ -50,11 +63,150 @@ def seed_everything(seed: int):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True
 
-def test_model():
-    data_test  = ChestXRayNPYDataset(file      = args.data_test,
-                                     transform = transform)
-    test_loader  = torch.utils.data.DataLoader(data_test,
-                                               batch_size=args.test_bs)
+def test_model(model, model_weights_path, test_loader, device):
+    model.load_state_dict(torch.load(model_weights_path))
+
+    trainer.val_epoch(device = device,
+                      loader = test_loader,
+                      model = model,
+                      labels = ChestXRayNPYDataset.labels,
+                      epochs_till_now = 0,
+                      final_epoch = 0,
+                      log_interval = 20)
+def ft_resnet_50_adam_steplr_staged(
+    config,
+    device: str,
+    log_interval: int,
+    save_interval: int,
+    out_path: str,
+    train_loader,
+    val_loader,
+    seed: int
+):
+    seed_everything(seed)
+
+    model = net.get_model(len(ChestXRayNPYDataset.labels))
+    model_path = os.path.join(out_path, 'models')
+    eval_path = os.path.join(out_path, 'eval')
+
+    if not os.path.exists(out_path):
+        os.mkdir(out_path)
+
+    # Print Network and training info
+    summary(model, input_size=(1, 3, 244, 244))
+    print('Using device: {}'.format(device))
+
+    trainer.criterion_t = nn.BCEWithLogitsLoss()
+    trainer.criterion_v = nn.BCEWithLogitsLoss()
+
+    print('------ STAGE 0 --------')
+    for name, param in model.named_parameters():
+        if ('layer2' in name) or ('layer3' in name) or ('layer4' in name) or ('fc' in name):
+            param.requires_grad = True 
+        else:
+            param.requires_grad = False
+    trainer.optimizer  = optim.Adam(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr = config[0]['lr']
+    )
+    trainer.scheduler = optim.lr_scheduler.ExponentialLR(
+        trainer.optimizer,
+        gamma = config[0]['step_size']
+    )
+
+    # Run the training
+    trainer.run(device        = device,
+                model         = model,
+                train_loader  = train_loader,
+                val_loader    = val_loader,
+                epochs        = config[0]['epochs'],
+                log_interval  = log_interval,
+                save_interval = save_interval,
+                labels        = ChestXRayNPYDataset.labels,
+                model_dir     = model_path,
+                stage         = '0')
+
+    print('------ STAGE 1 --------')
+    for name, param in model.named_parameters():
+        if ('layer3' in name) or ('layer4' in name) or ('fc' in name):
+            param.requires_grad = True 
+        else:
+            param.requires_grad = False
+    trainer.optimizer  = optim.Adam(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr = config[1]['lr']
+    )
+    trainer.scheduler = optim.lr_scheduler.ExponentialLR(
+        trainer.optimizer,
+        gamma = config[1]['step_size']
+    )
+
+    # Run the training
+    trainer.run(device        = device,
+                model         = model,
+                train_loader  = train_loader,
+                val_loader    = val_loader,
+                epochs        = config[1]['epochs'],
+                log_interval  = log_interval,
+                save_interval = save_interval,
+                labels        = ChestXRayNPYDataset.labels,
+                model_dir     = model_path,
+                stage         = '1')
+
+    print('------ STAGE 2 --------')
+    for name, param in model.named_parameters():
+        if ('layer4' in name) or ('fc' in name):
+            param.requires_grad = True 
+        else:
+            param.requires_grad = False
+    trainer.optimizer  = optim.Adam(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr = config[2]['lr']
+    )
+    trainer.scheduler = optim.lr_scheduler.ExponentialLR(
+        trainer.optimizer,
+        gamma = config[2]['step_size']
+    )
+
+    # Run the training
+    trainer.run(device        = device,
+                model         = model,
+                train_loader  = train_loader,
+                val_loader    = val_loader,
+                epochs        = config[2]['epochs'],
+                log_interval  = log_interval,
+                save_interval = save_interval,
+                labels        = ChestXRayNPYDataset.labels,
+                model_dir     = model_path,
+                stage         = '2')
+
+    print('------ STAGE 3 --------')
+    for name, param in model.named_parameters():
+        if  ('fc' in name):
+            param.requires_grad = True 
+        else:
+            param.requires_grad = False
+    trainer.optimizer  = optim.Adam(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr = config[3]['lr']
+    )
+    trainer.scheduler = optim.lr_scheduler.ExponentialLR(
+        trainer.optimizer,
+        gamma = config[3]['step_size']
+    )
+
+    # Run the training
+    trainer.run(device        = device,
+                model         = model,
+                train_loader  = train_loader,
+                val_loader    = val_loader,
+                epochs        = config[3]['epochs'],
+                log_interval  = log_interval,
+                save_interval = save_interval,
+                labels        = ChestXRayNPYDataset.labels,
+                model_dir     = model_path,
+                stage         = '3')
+
 
 def ft_resnet_50_adam_exponential(
     config,
@@ -218,6 +370,7 @@ def main():
     parser.add_argument('--folds', type=int, default=5, help='how many folds to produce')
     parser.add_argument('--val-id', type=int, default=0, help='Which fold id to use for test/val split')
     parser.add_argument('--seed', type=int, default=0, help='Seed the random generator to get reproducability')
+    parser.add_argument('--official', type = bool, default = False, help = 'Use official train/test split. overrides folds and val-id')
     args = parser.parse_args()
     print(args.runs)
 
@@ -228,11 +381,20 @@ def main():
     data       = ChestXRayNPYDataset(file      = args.data_train,
                                      transform = transform)
 
-    # Perform a k-fold split with random.shuffle()
-    split      = dataset.k_fold_split_patient_aware(dataset = data,
-                                                    folds   = args.folds,
-                                                    val_id  = args.val_id)
-    data_val, data_train = split
+    if args.official:
+        print("Using official train/test split")
+        data_train = data
+        data_val   = ChestXRayNPYDataset(file      = args.data_test,
+                                         transform = None)
+        data_test = data_val
+    else:
+        # Perform a k-fold split with random.shuffle()
+        split      = dataset.k_fold_split_patient_aware(dataset = data,
+                                                        folds   = args.folds,
+                                                        val_id  = args.val_id)
+        data_val, data_train = split
+        data_test   = ChestXRayNPYDataset(file      = args.data_test,
+                                          transform = None)
 
 
     # simple data loaders are enough, as everything is in memory anyway
@@ -247,6 +409,7 @@ def main():
 
     
     if 0 in args.runs:
+        print("resnet 40 adam, steplr")
         ft_resnet_50_adam_steplr(config = configs['ft_resnet_50_adam_steplr'],
                                  device = device,
                                  log_interval = args.log_interval,
@@ -269,7 +432,20 @@ def main():
                                   seed = args.seed)
     
     if 2 in args.runs:
+        print("resnet 50 adam exponential")
         ft_resnet_50_adam_exponential(config = configs['ft_resnet_50_adam_exponential'],
+                                      device = device,
+                                      log_interval = args.log_interval,
+                                      save_interval = args.save_interval,
+                                      out_path = os.path.join(args.save_path,
+                                                              'resnet_50_adam_exponential'),
+                                      train_loader = train_loader,
+                                      val_loader = val_loader,
+                                      seed = args.seed)
+
+    if 3 in args.runs:
+        print("resnet 50 staged steplr")
+        ft_resnet_50_adam_steplr_staged(config = configs['ft_resnet_50_adam_steplr_staged'],
                                       device = device,
                                       log_interval = args.log_interval,
                                       save_interval = args.save_interval,
