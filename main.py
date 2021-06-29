@@ -458,7 +458,7 @@ def main():
                                                batch_size = args.train_bs,
                                                collate_fn = collate.cf,
                                                sampler    = WeightedRandomSampler(weights(data_train),
-                                                                                  len(data_train))
+                                                                                  len(data_train)))
 
 
     if 0 in args.runs:
