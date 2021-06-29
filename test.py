@@ -2,6 +2,7 @@ from modules.dataset import ChestXRayImages
 import argparse
 from modules import dataset
 from pprint import pp
+from main import seed_everything
 import termplotlib as tpl
 
 
@@ -68,7 +69,9 @@ def main():
 def main_folds():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data-train', type = str)
+    parser.add_argument('--seed', type=int, default=0, help='Seed the random generator to get reproducability')
     args = parser.parse_args()
+    seed_everything(args.seed)
 
     findings = [
         'Atelectasis',
