@@ -48,10 +48,16 @@ configs = {
         ]
 }
 
-transform = transforms.Compose([
-     transforms.RandomRotation((-7, 7)),
-     transforms.RandomHorizontalFlip(p=0.25)
-])
+# transform = transforms.Compose([
+#      transforms.RandomRotation((-7, 7)),
+#      transforms.RandomHorizontalFlip(p=0.25)
+# ])
+
+# random vertical flip with probabilty of 50%
+def transform(x: np.ndarray):
+    if random.uniform(0, 1) < 0.5:
+        return np.flip(x, axis=2)
+    return x
 
 
 def seed_everything(seed: int):
@@ -102,7 +108,7 @@ def ft_resnet_50_adam_steplr_staged(
     print('------ STAGE 0 --------')
     for name, param in model.named_parameters():
         if ('layer2' in name) or ('layer3' in name) or ('layer4' in name) or ('fc' in name):
-            param.requires_grad = True 
+            param.requires_grad = True
         else:
             param.requires_grad = False
     trainer.optimizer  = optim.Adam(
@@ -129,7 +135,7 @@ def ft_resnet_50_adam_steplr_staged(
     print('------ STAGE 1 --------')
     for name, param in model.named_parameters():
         if ('layer3' in name) or ('layer4' in name) or ('fc' in name):
-            param.requires_grad = True 
+            param.requires_grad = True
         else:
             param.requires_grad = False
     trainer.optimizer  = optim.Adam(
@@ -156,7 +162,7 @@ def ft_resnet_50_adam_steplr_staged(
     print('------ STAGE 2 --------')
     for name, param in model.named_parameters():
         if ('layer4' in name) or ('fc' in name):
-            param.requires_grad = True 
+            param.requires_grad = True
         else:
             param.requires_grad = False
     trainer.optimizer  = optim.Adam(
@@ -183,7 +189,7 @@ def ft_resnet_50_adam_steplr_staged(
     print('------ STAGE 3 --------')
     for name, param in model.named_parameters():
         if  ('fc' in name):
-            param.requires_grad = True 
+            param.requires_grad = True
         else:
             param.requires_grad = False
     trainer.optimizer  = optim.Adam(
@@ -407,7 +413,7 @@ def main():
                                                collate_fn = collate.cf,
                                                sampler    = RandomSampler(range(len(data_train))))
 
-    
+
     if 0 in args.runs:
         print("resnet 40 adam, steplr")
         ft_resnet_50_adam_steplr(config = configs['ft_resnet_50_adam_steplr'],
@@ -430,7 +436,7 @@ def main():
                                   train_loader = train_loader,
                                   val_loader = val_loader,
                                   seed = args.seed)
-    
+
     if 2 in args.runs:
         print("resnet 50 adam exponential")
         ft_resnet_50_adam_exponential(config = configs['ft_resnet_50_adam_exponential'],

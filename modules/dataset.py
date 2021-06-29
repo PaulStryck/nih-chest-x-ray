@@ -46,10 +46,10 @@ class ChestXRayNPYDataset(Dataset):
         target = self._targets[index][1:].astype(np.float32)  # leave out patient id
 
         if self.transform is not None:
-            data = torch.as_tensor(self.transform(data))
+            data = self.transform(data)
 
         if self.target_transform is not None:
-            target = torch.as_tensor(self.target_transform(target))
+            target = self.target_transform(target)
 
         return data, target
 
@@ -223,6 +223,10 @@ class ChestXRayImages():
     @property
     def data_test(self):
         return self._data_test[['idx', 'findings']]
+
+    @property
+    def data_train_all(self):
+        return self._data_train[['idx', 'findings']]
 
 
     def data_val(self, fold_id: int):
