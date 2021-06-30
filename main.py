@@ -52,6 +52,30 @@ configs = {
         'lr': 0.0001,
         'epochs': 10,
         'gamma': 0.1
+    },
+    'ft_effnet_b7_adam_steplr': {
+        'lr': 0.001,
+        'step_size': 2,
+        'gamma': 0.5,
+        'epochs': 5
+    },
+    'ft_effnet_b7_sgd_steplr': {
+        'lr': 0.001,
+        'step_size': 2,
+        'gamma': 0.5,
+        'epochs': 5
+    },
+    'ft_effnet_b0_sgd_steplr': {
+        'lr': 0.001,
+        'step_size': 2,
+        'gamma': 0.5,
+        'epochs': 5
+    },
+    'ft_effnet_b0_adam_steplr': {
+        'lr': 0.001,
+        'step_size': 2,
+        'gamma': 0.5,
+        'epochs': 5
     }
 }
 
@@ -77,6 +101,207 @@ def test_model(model, model_weights_path, test_loader, device):
                       epochs_till_now = 0,
                       final_epoch = 0,
                       log_interval = 20)
+
+def ft_effnet_b0_sgd_steplr(
+    config,
+    device: str,
+    log_interval,
+    save_interval: int,
+    out_path: str,
+    train_loader,
+    val_loader,
+    seed: int
+):
+    seed_everything(seed)
+
+    model = net.get_effnet_b0(len(ChestXRayNPYDataset.labels))
+    model.to(device)
+    model_path = os.path.join(out_path, 'models')
+    eval_path = os.path.join(out_path, 'eval')
+
+    if not os.path.exists(out_path):
+        os.mkdir(out_path)
+
+    # Print Network and training info
+    summary(model, input_size=(1, 3, 244, 244))
+    print('Using device: {}'.format(device))
+
+    trainer.criterion_t = nn.BCEWithLogitsLoss()
+    trainer.criterion_v = nn.BCEWithLogitsLoss()
+
+    trainer.optimizer  = optim.SGD(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr = config['lr'],
+        momentum = 0.9
+    )
+
+    trainer.scheduler = optim.lr_scheduler.StepLR(
+        trainer.optimizer,
+        step_size = config['step_size'],
+        gamma = config['gamma']
+    )
+
+    # Run the training
+    trainer.run(device        = device,
+                model         = model,
+                train_loader  = train_loader,
+                val_loader    = val_loader,
+                epochs        = config['epochs'],
+                log_interval  = log_interval,
+                save_interval = save_interval,
+                labels        = ChestXRayNPYDataset.labels,
+                model_dir     = model_path,
+                stage         = '0')
+
+def ft_effnet_b0_adam_steplr(
+    config,
+    device: str,
+    log_interval,
+    save_interval: int,
+    out_path: str,
+    train_loader,
+    val_loader,
+    seed: int
+):
+    seed_everything(seed)
+
+    model = net.get_effnet_b0(len(ChestXRayNPYDataset.labels))
+    model_path = os.path.join(out_path, 'models')
+    eval_path = os.path.join(out_path, 'eval')
+
+    if not os.path.exists(out_path):
+        os.mkdir(out_path)
+
+    # Print Network and training info
+    summary(model, input_size=(1, 3, 244, 244))
+    print('Using device: {}'.format(device))
+
+    trainer.criterion_t = nn.BCEWithLogitsLoss()
+    trainer.criterion_v = nn.BCEWithLogitsLoss()
+
+    trainer.optimizer  = optim.Adam(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr = config['lr']
+    )
+
+    trainer.scheduler = optim.lr_scheduler.StepLR(
+        trainer.optimizer,
+        step_size = config['step_size'],
+        gamma = config['gamma']
+    )
+
+    # Run the training
+    trainer.run(device        = device,
+                model         = model,
+                train_loader  = train_loader,
+                val_loader    = val_loader,
+                epochs        = config['epochs'],
+                log_interval  = log_interval,
+                save_interval = save_interval,
+                labels        = ChestXRayNPYDataset.labels,
+                model_dir     = model_path,
+                stage         = '0')
+
+def ft_effnet_b7_sgd_steplr(
+    config,
+    device: str,
+    log_interval,
+    save_interval: int,
+    out_path: str,
+    train_loader,
+    val_loader,
+    seed: int
+):
+    seed_everything(seed)
+
+    model = net.get_effnet(len(ChestXRayNPYDataset.labels))
+    model.to(device)
+    model_path = os.path.join(out_path, 'models')
+    eval_path = os.path.join(out_path, 'eval')
+
+    if not os.path.exists(out_path):
+        os.mkdir(out_path)
+
+    # Print Network and training info
+    summary(model, input_size=(1, 3, 244, 244))
+    print('Using device: {}'.format(device))
+
+    trainer.criterion_t = nn.BCEWithLogitsLoss()
+    trainer.criterion_v = nn.BCEWithLogitsLoss()
+
+    trainer.optimizer  = optim.SGD(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr = config['lr'],
+        momentum = 0.9
+    )
+
+    trainer.scheduler = optim.lr_scheduler.StepLR(
+        trainer.optimizer,
+        step_size = config['step_size'],
+        gamma = config['gamma']
+    )
+
+    # Run the training
+    trainer.run(device        = device,
+                model         = model,
+                train_loader  = train_loader,
+                val_loader    = val_loader,
+                epochs        = config['epochs'],
+                log_interval  = log_interval,
+                save_interval = save_interval,
+                labels        = ChestXRayNPYDataset.labels,
+                model_dir     = model_path,
+                stage         = '0')
+
+def ft_effnet_b7_adam_steplr(
+    config,
+    device: str,
+    log_interval,
+    save_interval: int,
+    out_path: str,
+    train_loader,
+    val_loader,
+    seed: int
+):
+    seed_everything(seed)
+
+    model = net.get_effnet(len(ChestXRayNPYDataset.labels))
+    model_path = os.path.join(out_path, 'models')
+    eval_path = os.path.join(out_path, 'eval')
+
+    if not os.path.exists(out_path):
+        os.mkdir(out_path)
+
+    # Print Network and training info
+    summary(model, input_size=(1, 3, 244, 244))
+    print('Using device: {}'.format(device))
+
+    trainer.criterion_t = nn.BCEWithLogitsLoss()
+    trainer.criterion_v = nn.BCEWithLogitsLoss()
+
+    trainer.optimizer  = optim.Adam(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr = config['lr']
+    )
+
+    trainer.scheduler = optim.lr_scheduler.StepLR(
+        trainer.optimizer,
+        step_size = config['step_size'],
+        gamma = config['gamma']
+    )
+
+    # Run the training
+    trainer.run(device        = device,
+                model         = model,
+                train_loader  = train_loader,
+                val_loader    = val_loader,
+                epochs        = config['epochs'],
+                log_interval  = log_interval,
+                save_interval = save_interval,
+                labels        = ChestXRayNPYDataset.labels,
+                model_dir     = model_path,
+                stage         = '0')
+
 
 def ft_effnet_b7_adam_exponential(
     config,
@@ -519,6 +744,54 @@ def main():
                                       train_loader = train_loader,
                                       val_loader = val_loader,
                                       seed = args.seed)
+
+    if 5 in args.runs:
+        print("Effnet b0 sgd steplr")
+        ft_effnet_b0_sgd_steplr(config = configs['ft_effnet_b0_sgd_steplr'],
+                                device = device,
+                                log_interval = args.log_interval,
+                                save_interval = args.save_interval,
+                                out_path = os.path.join(args.save_path,
+                                                        'effnet_b0_sgd_steplr'),
+                                train_loader = train_loader,
+                                val_loader = val_loader,
+                                seed = args.seed)
+
+    if 6 in args.runs:
+        print("Effnet b0 adam steplr")
+        ft_effnet_b0_adam_steplr(config = configs['ft_effnet_b0_adam_steplr'],
+                                 device = device,
+                                 log_interval = args.log_interval,
+                                 save_interval = args.save_interval,
+                                 out_path = os.path.join(args.save_path,
+                                                         'effnet_b0_adam_steplr'),
+                                 train_loader = train_loader,
+                                 val_loader = val_loader,
+                                 seed = args.seed)
+
+    if 7 in args.runs:
+        print("Effnet b7 sgd steplr")
+        ft_effnet_b7_sgd_steplr(config = configs['ft_effnet_b7_sgd_steplr'],
+                                device = device,
+                                log_interval = args.log_interval,
+                                save_interval = args.save_interval,
+                                out_path = os.path.join(args.save_path,
+                                                        'effnet_b7_sgd_steplr'),
+                                train_loader = train_loader,
+                                val_loader = val_loader,
+                                seed = args.seed)
+    if 8 in args.runs:
+        print("Effnet b7 adam steplr")
+        ft_effnet_b7_adam_steplr(config = configs['ft_effnet_b7_adam_steplr'],
+                                device = device,
+                                log_interval = args.log_interval,
+                                save_interval = args.save_interval,
+                                out_path = os.path.join(args.save_path,
+                                                        'effnet_b7_adam_steplr'),
+                                train_loader = train_loader,
+                                val_loader = val_loader,
+                                seed = args.seed)
+
 
 if __name__ == "__main__":
     main()
