@@ -57,6 +57,8 @@ def test_all(base_dir, model, test_data_loader, device):
     for m in glob.iglob(model_dir):
         model_name = os.path.basename(m)
 
+        print('Testing {}'.format(model_name))
+
         model.load_state_dict(torch.load(m, map_location=device))
         tar, pred = test_model(model, test_data_loader, device)
         concat = torch.cat([tar, pred], dim=1)  # each row contains 30 entries
