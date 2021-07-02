@@ -28,17 +28,17 @@ def load_network(net_type: Network):
 def test_model(model, test_data_loader, device):
     targets     = []
     predictions = []
-
+    
+    model.to(device)
     model.eval()
     with torch.no_grad():
         for batch_idx, (img, target) in enumerate(test_data_loader):
             img    = img.to(device)
-            target = target.to(device)
 
             out = torch.sigmoid(model(img))
 
-            targets.append(target)
-            predictions.append(out)
+            targets.append(target.cpu())
+            predictions.append(out.cpu())
 
     targets     = torch.cat(targets, dim=0)
     predictions = torch.cat(predictions, dim=0)
