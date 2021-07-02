@@ -1,11 +1,13 @@
 import argparse
 import os
 import random
+from enum import Enum
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.utils.data import DataLoader
 from torch.utils.data.sampler import WeightedRandomSampler
 from torchinfo import summary
 from torchvision import transforms
@@ -15,6 +17,161 @@ from modules import collate, dataset, loss, net, trainer
 from modules.sampler import weights
 from modules.dataset import (ChestXRayImageDataset, ChestXRayImages,
                              ChestXRayNPYDataset)
+
+class BaseNet(Enum):
+    RESNET_34   = 1
+    RESNET_50   = 2
+
+    EFFNET_B0   = 3
+    EFFNET_B7   = 4
+
+    GOOGLENET   = 5
+
+    DENSENET161 = 6
+
+class BaseOptimizer(Enum):
+    ADAM = 1
+    SGD  = 2
+
+class BaseScheduler(Enum):
+    STEPLR          = 1
+    REDUCEONPLATEAU = 2
+    EXPONENTIAL     = 3
+
+class BaseLoss(Enum):
+    BCE     = 1
+    BPMLL   = 2
+    HAMMING = 3
+
+
+conf = [
+    {
+        'name': 'ft_googlenet_adam_steplr',
+        'net': BaseNet.GOOGLENET,
+        'epochs': 7,
+        'bs': 128,
+        'callback': None,
+        'optim': {
+            'type': BaseOptimizer.ADAM,
+            'lr': 5e-4,
+            'betas': (0.9, 0.999)
+        },
+        'scheduler': {
+            'type': BaseScheduler.STEPLR,
+            'step_size': 5,
+            'gamma': 0.5
+        },
+        'loss': BaseLoss.BCE
+    },
+    {
+        'name': 'ft_resnet_34_adam_steplr',
+        'net': BaseNet.RESNET_34,
+        'epochs': 5,
+        'bs': 1,
+        'callback': None,
+        'optim': {
+            'type': BaseOptimizer.ADAM,
+            'lr': 1e-3,
+            'betas': (0.9, 0.999)
+        },
+        'scheduler': {
+            'type': BaseScheduler.STEPLR,
+            'step_size': 2,
+            'gamma': 0.1
+        },
+        'loss': BaseLoss.BCE
+    }
+]
+
+def run_conf(
+    config,
+    device: str,
+    log_images: int,
+    base_path: str,
+    train_loader,
+    val_loader,
+    seed: int
+):
+    seed_everything(seed)
+    num_classes = 15
+    pretrained = False if config.get('scratch', False) else True
+
+    out_path = os.path.join(base_path, config['name'])
+
+    model_path = os.path.join(out_path, 'models')
+    eval_path = os.path.join(out_path, 'eval')
+
+    if config['net'] == BaseNet.RESNET_34:
+        model = net.get_resnet_34(num_classes,
+                                  pretrained = pretrained)
+    elif config['net'] == BaseNet.RESNET_50:
+        model = net.get_resnet_50(num_classes,
+                                  pretrained = pretrained)
+    elif config['net'] == BaseNet.EFFNET_B0:
+        model = net.get_effnet_b0(num_classes)
+    elif config['net'] == BaseNet.EFFNET_B7:
+        model = net.get_effnet_b7(num_classes)
+    elif config['net'] == BaseNet.GOOGLENET:
+        model = net.get_googlenet(num_clases,
+                                  pretrained = pretrained)
+    elif config['net'] == BaseNet.DENSENET161:
+        model = net.get_densenet161(num_classes,
+                                    pretrained = pretrained)
+    else:
+        raise ValueError("Network {} not defined".format(config['net']))
+
+    os.makedirs(model_path, exist_ok=True)
+    os.makedirs(eval_path, exist_ok=True)
+
+
+    # Setup Loss Function
+    if config['loss'] == BaseLoss.BCE:
+        trainer.criterion_t = nn.BCEWithLogitsLoss()
+        trainer.criterion_v = nn.BCEWithLogitsLoss()
+    else:
+        raise ValueError('Loss {} not defined'.format(config['loss']))
+
+
+    # Setup optimizer
+    if config['optim']['type'] == BaseOptimizer.ADAM:
+        trainer.optimizer  = optim.Adam(
+            filter(lambda p: p.requires_grad, model.parameters()),
+            lr = config['optim']['lr'],
+            betas = config['optim']['betas']
+        )
+    elif config['optim']['type'] == BaseOptimizer.SGD:
+        trainer.optimizer  = optim.SGD(
+            filter(lambda p: p.requires_grad, model.parameters()),
+            lr = config['lr'],
+            momentum = config['momentum']
+        )
+    else:
+        raise ValueError('Optimzer {} not defined'.format(config['optim']['type']))
+
+    # Setup scheduler
+    if config['scheduler']['type'] == BaseScheduler.STEPLR:
+        trainer.scheduler = optim.lr_scheduler.StepLR(
+            trainer.optimizer,
+            step_size = config['scheduler']['step_size'],
+            gamma = config['scheduler']['gamma']
+        )
+    else:
+        raise ValueError('scheduler {} not defined'.format(config['scheduler']['type']))
+
+    # Run the training
+    trainer.run(device        = device,
+                model         = model,
+                train_loader  = train_loader,
+                val_loader    = val_loader,
+                epochs        = config['epochs'],
+                log_interval  = int(log_images/config['bs']),
+                save_interval = 1,
+                labels        = ChestXRayNPYDataset.labels,
+                model_dir     = model_path,
+                stage         = '0',
+                callback      = config['callback'])
+
+
 
 configs = {
     'ft_resnet_34_adam_steplr': {
@@ -786,14 +943,17 @@ def main():
 
     # simple data loaders are enough, as everything is in memory anyway
     # and using a single gpu suffices. As GPU speed is not the bottleneck
-    val_loader   = torch.utils.data.DataLoader(data_val,
-                                               batch_size=args.val_bs,
-                                               collate_fn=collate.cf)
-    train_loader = torch.utils.data.DataLoader(data_train,
-                                               batch_size = args.train_bs,
-                                               collate_fn = collate.cf,
-                                               sampler    = WeightedRandomSampler(weights(data_train),
-                                                                                  len(data_train)))
+    val_loader   = DataLoader(data_val,
+                              batch_size=args.val_bs,
+                              collate_fn=collate.cf)
+
+    train_loader = DataLoader(data_train,
+                              batch_size = args.train_bs,
+                              collate_fn = collate.cf,
+                              sampler    = WeightedRandomSampler(
+                                  weights(data_train),
+                                  len(data_train)
+                              ))
 
 
     if 0 in args.runs:
@@ -901,7 +1061,7 @@ def main():
                                 train_loader = train_loader,
                                 val_loader = val_loader,
                                 seed = args.seed)
-    
+
     if 9 in args.runs:
         print("resnet 50 adam, steplr, scratch")
         ft_resnet_50_adam_steplr_scratch(config = configs['ft_resnet_50_adam_steplr_scratch'],
@@ -927,5 +1087,65 @@ def main():
                                          seed = args.seed)
 
 
+def main_new(args):
+    # Use exactly the supplied device. No error handling whatsoever
+    device = torch.device(args.device)
+
+    # Loads the entire train/val dataset with official test data left out
+    data       = ChestXRayNPYDataset(file      = args.data_train,
+                                     transform = transform)
+
+    if args.official:
+        print("Using official train/test split")
+        data_train = data
+        data_val   = ChestXRayNPYDataset(file      = args.data_test,
+                                         transform = None)
+        data_test = data_val
+    else:
+        # Perform a k-fold split with random.shuffle()
+        split      = dataset.k_fold_split_patient_aware(dataset = data,
+                                                        folds   = args.folds,
+                                                        val_id  = args.val_id)
+        data_val, data_train = split
+        data_test   = ChestXRayNPYDataset(file      = args.data_test,
+                                          transform = None)
+
+
+    # simple data loaders are enough, as everything is in memory anyway
+    # and using a single gpu suffices. As GPU speed is not the bottleneck
+    val_loader   = DataLoader(data_val,
+                              batch_size=args.bs,
+                              collate_fn=collate.cf)
+
+    train_loader = DataLoader(data_train,
+                              batch_size = args.bs,
+                              collate_fn = collate.cf,
+                              sampler    = WeightedRandomSampler(
+                                  weights(data_train),
+                                  len(data_train)
+                              ))
+
+    for c in conf:
+        run_conf(config = c,
+                 device = device,
+                 log_images = args.log_images,
+                 base_path = args.save_path,
+                 train_loader = train_loader,
+                 val_loader = val_loader,
+                 seed = args.seed)
+
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data-train', type = str)
+    parser.add_argument('--data-test', type = str)
+    parser.add_argument('--bs', type = int)
+    parser.add_argument('--runs', nargs='+', type = int)
+    parser.add_argument('--save-path', type = str, help = 'Path to store models')
+    parser.add_argument('--device', type = str, default = 'cpu', help = 'Force usage of device')
+    parser.add_argument('--log-images', type = int, default = 5, help = 'log every n batches')
+    parser.add_argument('--folds', type=int, default=5, help='how many folds to produce')
+    parser.add_argument('--val-id', type=int, default=0, help='Which fold id to use for test/val split')
+    parser.add_argument('--seed', type=int, default=0, help='Seed the random generator to get reproducability')
+    parser.add_argument('--official', type = bool, default = False, help = 'Use official train/test split. overrides folds and val-id')
+    args = parser.parse_args()
+    main_new(args)
