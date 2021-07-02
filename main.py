@@ -17,11 +17,23 @@ from modules.dataset import (ChestXRayImageDataset, ChestXRayImages,
                              ChestXRayNPYDataset)
 
 configs = {
+    'ft_resnet_34_adam_steplr': {
+        'lr': 0.0001,
+        'step_size': 1,
+        'gamma': 0.25,
+        'epochs': 5
+    },
     'ft_resnet_50_adam_steplr': {
         'lr': 0.0001,
         'step_size': 2,
         'gamma': 0.5,
         'epochs': 5
+    },
+    'ft_resnet_50_adam_steplr_scratch': {
+        'lr': 0.01,
+        'step_size': 2,
+        'gamma': 0.5,
+        'epochs': 10
     },
     'ft_resnet_50_adam_redplat': {
         'lr': 0.00005,
@@ -581,6 +593,104 @@ def ft_resnet_50_adam_redplat(
                 model_dir     = model_path,
                 stage         = '0')
 
+def ft_resnet_50_adam_steplr_scratch(
+    config,
+    device: str,
+    log_interval: int,
+    save_interval: int,
+    out_path: str,
+    train_loader,
+    val_loader,
+    seed: int
+):
+    seed_everything(seed)
+
+    model = net.get_resnet_50(len(ChestXRayNPYDataset.labels), False)
+    model_path = os.path.join(out_path, 'models')
+    eval_path = os.path.join(out_path, 'eval')
+
+    if not os.path.exists(out_path):
+        os.mkdir(out_path)
+
+    # Print Network and training info
+    summary(model, input_size=(1, 3, 244, 244))
+    print('Using device: {}'.format(device))
+
+    trainer.criterion_t = nn.BCEWithLogitsLoss()
+    trainer.criterion_v = nn.BCEWithLogitsLoss()
+
+    trainer.optimizer  = optim.Adam(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr = config['lr']
+    )
+
+    trainer.scheduler = optim.lr_scheduler.StepLR(
+        trainer.optimizer,
+        step_size = config['step_size'],
+        gamma = config['gamma']
+    )
+
+    # Run the training
+    trainer.run(device        = device,
+                model         = model,
+                train_loader  = train_loader,
+                val_loader    = val_loader,
+                epochs        = config['epochs'],
+                log_interval  = log_interval,
+                save_interval = save_interval,
+                labels        = ChestXRayNPYDataset.labels,
+                model_dir     = model_path,
+                stage         = '0')
+
+def ft_resnet_34_adam_steplr(
+    config,
+    device: str,
+    log_interval: int,
+    save_interval: int,
+    out_path: str,
+    train_loader,
+    val_loader,
+    seed: int
+):
+    seed_everything(seed)
+
+    model = net.get_resnet_34(len(ChestXRayNPYDataset.labels))
+    model_path = os.path.join(out_path, 'models')
+    eval_path = os.path.join(out_path, 'eval')
+
+    if not os.path.exists(out_path):
+        os.mkdir(out_path)
+
+    # Print Network and training info
+    summary(model, input_size=(1, 3, 244, 244))
+    print('Using device: {}'.format(device))
+
+    trainer.criterion_t = nn.BCEWithLogitsLoss()
+    trainer.criterion_v = nn.BCEWithLogitsLoss()
+
+    trainer.optimizer  = optim.Adam(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr = config['lr']
+    )
+
+    trainer.scheduler = optim.lr_scheduler.StepLR(
+        trainer.optimizer,
+        step_size = config['step_size'],
+        gamma = config['gamma']
+    )
+
+    # Run the training
+    trainer.run(device        = device,
+                model         = model,
+                train_loader  = train_loader,
+                val_loader    = val_loader,
+                epochs        = config['epochs'],
+                log_interval  = log_interval,
+                save_interval = save_interval,
+                labels        = ChestXRayNPYDataset.labels,
+                model_dir     = model_path,
+                stage         = '0')
+
 def ft_resnet_50_adam_steplr(
     config,
     device: str,
@@ -791,6 +901,30 @@ def main():
                                 train_loader = train_loader,
                                 val_loader = val_loader,
                                 seed = args.seed)
+    
+    if 9 in args.runs:
+        print("resnet 50 adam, steplr, scratch")
+        ft_resnet_50_adam_steplr_scratch(config = configs['ft_resnet_50_adam_steplr_scratch'],
+                                         device = device,
+                                         log_interval = args.log_interval,
+                                         save_interval = args.save_interval,
+                                         out_path = os.path.join(args.save_path,
+                                                                 'resnet_50_adam_steplr_scratch'),
+                                         train_loader = train_loader,
+                                         val_loader = val_loader,
+                                         seed = args.seed)
+
+    if 10 in args.runs:
+        print("resnet 34 adam, steplr")
+        ft_resnet_34_adam_steplr(config = configs['ft_resnet_34_adam_steplr'],
+                                         device = device,
+                                         log_interval = args.log_interval,
+                                         save_interval = args.save_interval,
+                                         out_path = os.path.join(args.save_path,
+                                                                 'resnet_34_adam_steplr'),
+                                         train_loader = train_loader,
+                                         val_loader = val_loader,
+                                         seed = args.seed)
 
 
 if __name__ == "__main__":

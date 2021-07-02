@@ -12,8 +12,8 @@ def get_resnet_34(num_classes):
     return model
 
 
-def get_resnet_50(num_classes):
-    model = models.resnet50(pretrained=True, progress=True)
+def get_resnet_50(num_classes, pretrained: bool = True):
+    model = models.resnet50(pretrained=pretrained, progress=True)
 
     # change the last linear layer
     num_ftrs = model.fc.in_features
