@@ -1,6 +1,7 @@
 import os
 import time
-from typing import Callable, List
+from typing import Callable, List, Optional
+from statistics import mean
 
 import numpy as np
 import torch
@@ -154,7 +155,8 @@ def run(device: str,
         save_interval: int,
         labels: List,
         model_dir: str,
-        stage: str):
+        stage: str,
+        callback: Optional[Callable]):
 
     # Create directory where the models will be stored
     if not os.path.exists(model_dir):
@@ -187,6 +189,7 @@ def run(device: str,
                                      log_interval    = log_interval)
         print('ROC_AUC_SCORE: {}'.format(roc))
         print('AVG Loss in validation set: {}'.format(avg_loss))
+        print(mean([v for (k, v) in roc if k != 'none']))
 
         if isinstance(scheduler, ReduceLROnPlateau):
             scheduler.step(avg_loss)
