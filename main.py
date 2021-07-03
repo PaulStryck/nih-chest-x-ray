@@ -47,8 +47,66 @@ class BaseLoss(Enum):
 
 
 # use Optimizer.add_param_group() in callback for finetuning
+    # 'ft_effnet_b7_adam_exponential': {
+    #     'lr': 0.0001,
+    #     'epochs': 10,
+    #     'gamma': 0.1
+    # },
+    # 'ft_effnet_b7_adam_steplr': {
+    #     'lr': 0.001,
+    #     'step_size': 2,
+    #     'gamma': 0.5,
+    #     'epochs': 5
+    # },
+    # 'ft_effnet_b7_sgd_steplr': {
+    #     'lr': 0.001,
+    #     'step_size': 2,
+    #     'gamma': 0.5,
+    #     'epochs': 5
+    # },
+    # 'ft_effnet_b0_sgd_steplr': {
+    #     'lr': 0.001,
+    #     'step_size': 2,
+    #     'gamma': 0.5,
+    #     'epochs': 5
+    # },
+    # 'ft_effnet_b0_adam_steplr': {
+    #     'lr': 0.001,
+    #     'step_size': 2,
+    #     'gamma': 0.5,
+    #     'epochs': 5
+    # }
+    # 'ft_resnet_34_adam_steplr': {
+    #     'lr': 0.0001,
+    #     'step_size': 1,
+    #     'gamma': 0.25,
+    #     'epochs': 5
+    # },
+    # 'ft_resnet_50_adam_steplr': {
+    #     'lr': 0.0001,
+    #     'step_size': 2,
+    #     'gamma': 0.5,
+    #     'epochs': 5
+    # },
+    # 'ft_resnet_50_adam_steplr_scratch': {
+    #     'lr': 0.01,
+    #     'step_size': 2,
+    #     'gamma': 0.5,
+    #     'epochs': 10
+    # },
+    # 'ft_resnet_50_adam_redplat': {
+    #     'lr': 0.00005,
+    #     'epochs': 5,
+    #     'factor': 0.25,
+    #     'patience': 2
+    # },
+    # 'ft_resnet_50_adam_exponential': {
+    #     'lr': 0.0001,
+    #     'epochs': 10,
+    #     'gamma': 0.1
+    # },
 
-conf = [
+large_conf =  [
     {
         'name': 'ft_largeres_50_adam_steplr',
         'net': BaseNet.LARGERES50,
@@ -66,6 +124,26 @@ conf = [
             'gamma': 0.5
         },
         'loss': BaseLoss.BCE,
+    }
+]
+
+conf = [
+    {
+        'name': 'ft_resnet_50_adam_exponential',
+        'net' : BaseNet.RESNET_50,
+        'epochs': 10,
+        'bs': 128,
+        'callback': None,
+        'optim': {
+            'type': BaseOptimizer.ADAM,
+            'lr': 1e-3,
+            'betas': (0.9, 0.999)
+        },
+        'scheduler': {
+            'type': BaseScheduler.EXPONENTIAL,
+            'gamma': 0.1
+        },
+        'loss' BaseLoss.BCE
     },
     {
         'name': 'ft_dense161_adam_steplr_0',
@@ -167,11 +245,25 @@ def run_conf(
     device: str,
     log_images: int,
     base_path: str,
-    train_loader,
-    val_loader,
+    data_train,
+    data_val,
     seed: int
 ):
     seed_everything(seed)
+
+    # simple data loaders are enough, as everything is in memory anyway
+    # and using a single gpu suffices. As GPU speed is not the bottleneck
+    val_loader   = DataLoader(data_val,
+                              batch_size=config['bs'],
+                              collate_fn=collate.cf)
+
+    train_loader = DataLoader(data_train,
+                              batch_size = config['bs'],
+                              collate_fn = collate.cf,
+                              sampler    = WeightedRandomSampler(
+                                  weights(data_train),
+                                  len(data_train)
+                              ))
     num_classes = 15
     pretrained = False if config.get('scratch', False) else True
 
@@ -235,6 +327,11 @@ def run_conf(
         trainer.scheduler = optim.lr_scheduler.StepLR(
             trainer.optimizer,
             step_size = config['scheduler']['step_size'],
+            gamma = config['scheduler']['gamma']
+        )
+    elif config['scheduler']['type'] == BaseScheduler.EXPONENTIAL:
+        trainer.scheduler = optim.lr_scheduler.ExponentialLR(
+            trainer.optimizer,
             gamma = config['scheduler']['gamma']
         )
     else:
@@ -1202,28 +1299,14 @@ def main_new(args):
                                           transform = None)
 
 
-    # simple data loaders are enough, as everything is in memory anyway
-    # and using a single gpu suffices. As GPU speed is not the bottleneck
-    val_loader   = DataLoader(data_val,
-                              batch_size=args.bs,
-                              collate_fn=collate.cf)
-
-    train_loader = DataLoader(data_train,
-                              batch_size = args.bs,
-                              collate_fn = collate.cf,
-                              sampler    = WeightedRandomSampler(
-                                  weights(data_train),
-                                  len(data_train)
-                              ))
-
     for c in conf:
-        run_conf(config = c,
-                 device = device,
+        run_conf(config     = c,
+                 device     = device,
                  log_images = args.log_images,
-                 base_path = args.save_path,
-                 train_loader = train_loader,
-                 val_loader = val_loader,
-                 seed = args.seed)
+                 base_path  = args.save_path,
+                 data_train = data_train,
+                 data_val   = data_val,
+                 seed       = args.seed)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
