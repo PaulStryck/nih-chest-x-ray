@@ -111,7 +111,7 @@ large_conf =  [
         'name': 'ft_largeres_50_adam_steplr',
         'net': BaseNet.LARGERES50,
         'epochs': 10,
-        'bs': 128,
+        'bs': 64,
         'callback': None,
         'optim': {
             'type': BaseOptimizer.ADAM,
@@ -132,7 +132,7 @@ conf = [
         'name': 'ft_resnet_50_adam_exponential',
         'net' : BaseNet.RESNET_50,
         'epochs': 10,
-        'bs': 128,
+        'bs': 64,
         'callback': None,
         'optim': {
             'type': BaseOptimizer.ADAM,
@@ -149,7 +149,7 @@ conf = [
         'name': 'ft_dense161_adam_steplr_0',
         'net': BaseNet.DENSENET161,
         'epochs': 10,
-        'bs': 128,
+        'bs': 32,
         'callback': None,
         'optim': {
             'type': BaseOptimizer.ADAM,
@@ -343,8 +343,7 @@ def run_conf(
                 train_loader  = train_loader,
                 val_loader    = val_loader,
                 epochs        = config['epochs'],
-                # log_interval  = int(log_images/config['bs']),
-                log_interval  = 1,
+                log_interval  = int(log_images/config['bs']),
                 save_interval = 1,
                 labels        = ChestXRayNPYDataset.labels,
                 model_dir     = model_path,
@@ -1130,7 +1129,8 @@ def main():
     # and using a single gpu suffices. As GPU speed is not the bottleneck
     val_loader   = DataLoader(data_val,
                               batch_size=args.val_bs,
-                              collate_fn=collate.cf)
+                              collate_fn=collate.cf,
+                              persistent_workers = True)
 
     train_loader = DataLoader(data_train,
                               batch_size = args.train_bs,
@@ -1138,7 +1138,8 @@ def main():
                               sampler    = WeightedRandomSampler(
                                   weights(data_train),
                                   len(data_train)
-                              ))
+                              ),
+                              persistent_workers = True)
 
 
     if 0 in args.runs:
