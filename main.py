@@ -29,6 +29,8 @@ class BaseNet(Enum):
 
     DENSENET161 = 6
 
+    LARGERES50  = 7
+
 class BaseOptimizer(Enum):
     ADAM = 1
     SGD  = 2
@@ -47,6 +49,24 @@ class BaseLoss(Enum):
 # use Optimizer.add_param_group() in callback for finetuning
 
 conf = [
+    {
+        'name': 'ft_largeres_50_adam_steplr',
+        'net': BaseNet.LARGERES50,
+        'epochs': 10,
+        'bs': 128,
+        'callback': None,
+        'optim': {
+            'type': BaseOptimizer.ADAM,
+            'lr': 5e-4,
+            'betas': (0.9, 0.999)
+        },
+        'scheduler': {
+            'type': BaseScheduler.STEPLR,
+            'step_size': 2,
+            'gamma': 0.5
+        },
+        'loss': BaseLoss.BCE,
+    },
     {
         'name': 'ft_dense161_adam_steplr_0',
         'net': BaseNet.DENSENET161,
@@ -176,6 +196,9 @@ def run_conf(
     elif config['net'] == BaseNet.DENSENET161:
         model = net.get_densenet161(num_classes,
                                     pretrained = pretrained)
+    elif config['net'] == BaseNet.LARGERES50:
+        model = net.LargeResNet(num_classes,
+                                pretrained = pretrained)
     else:
         raise ValueError("Network {} not defined".format(config['net']))
 
@@ -223,7 +246,8 @@ def run_conf(
                 train_loader  = train_loader,
                 val_loader    = val_loader,
                 epochs        = config['epochs'],
-                log_interval  = int(log_images/config['bs']),
+                # log_interval  = int(log_images/config['bs']),
+                log_interval  = 1,
                 save_interval = 1,
                 labels        = ChestXRayNPYDataset.labels,
                 model_dir     = model_path,
@@ -961,6 +985,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data-train', type = str)
     parser.add_argument('--data-test', type = str)
+    parser.add_argument('--labels-train', type = str)
+    parser.add_argument('--labels-test', type = str)
     parser.add_argument('--runs', nargs='+', type = int)
     parser.add_argument('--save-path', type = str, help = 'Path to store models')
     parser.add_argument('--test-bs', type = int, default = 64, help = 'test batch size')
@@ -982,12 +1008,14 @@ def main():
 
     # Loads the entire train/val dataset with official test data left out
     data       = ChestXRayNPYDataset(file      = args.data_train,
+                                     targets   = args.labels_train,
                                      transform = transform)
 
     if args.official:
         print("Using official train/test split")
         data_train = data
         data_val   = ChestXRayNPYDataset(file      = args.data_test,
+                                         targets   = args.labels_test,
                                          transform = None)
         data_test = data_val
     else:
@@ -997,6 +1025,7 @@ def main():
                                                         val_id  = args.val_id)
         data_val, data_train = split
         data_test   = ChestXRayNPYDataset(file      = args.data_test,
+                                          targets   = args.labels_test,
                                           transform = None)
 
 
@@ -1152,12 +1181,14 @@ def main_new(args):
 
     # Loads the entire train/val dataset with official test data left out
     data       = ChestXRayNPYDataset(file      = args.data_train,
+                                     targets   = args.labels_train,
                                      transform = transform)
 
     if args.official:
         print("Using official train/test split")
         data_train = data
         data_val   = ChestXRayNPYDataset(file      = args.data_test,
+                                         targets   = args.labels_test,
                                          transform = None)
         data_test = data_val
     else:
@@ -1167,6 +1198,7 @@ def main_new(args):
                                                         val_id  = args.val_id)
         data_val, data_train = split
         data_test   = ChestXRayNPYDataset(file      = args.data_test,
+                                          targets   = args.labels_train,
                                           transform = None)
 
 
@@ -1197,6 +1229,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--data-train', type = str)
     parser.add_argument('--data-test', type = str)
+    parser.add_argument('--labels-train', type = str)
+    parser.add_argument('--labels-test', type = str)
     parser.add_argument('--bs', type = int)
     parser.add_argument('--runs', nargs='+', type = int)
     parser.add_argument('--save-path', type = str, help = 'Path to store models')
