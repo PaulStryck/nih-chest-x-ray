@@ -101,7 +101,7 @@ def main():
     del np_test_data
 
     with open(test_target_file, 'wb') as f:
-        np.save(f, np_test_labels
+        np.save(f, np_test_labels)
     del np_test_labels
 
     np_train_labels, np_train_data = preload(train,
