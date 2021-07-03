@@ -83,8 +83,10 @@ def main():
     parser.add_argument('--store-dir',   type=str, default='./')
     args = parser.parse_args()
 
-    test_file  = os.path.join(args.store_dir, 'test_224.npy')
-    train_file = os.path.join(args.store_dir, 'train_224.npy')
+    test_data_file    = os.path.join(args.store_dir, 'test_224.npy')
+    test_target_file  = os.path.join(args.store_dir, 'test_tar_224.npy')
+    train_data_file   = os.path.join(args.store_dir, 'train_224.npy')
+    train_target_file = os.path.join(args.store_dir, 'train_tar_224.npy')
 
     test, train = parse_csv(root           = args.data_dir,
                             rel_label_file = args.file_labels,
@@ -94,20 +96,23 @@ def main():
     np_test_labels, np_test_data = preload(test,
                                            os.path.join(args.data_dir,
                                                         'images_*/images'))
-    with open(test_file, 'wb') as f:
+    with open(test_data_file, 'wb') as f:
         np.save(f, np_test_data)
-        np.save(f, np_test_labels)
     del np_test_data
+
+    with open(test_target_file, 'wb') as f:
+        np.save(f, np_test_labels
     del np_test_labels
 
     np_train_labels, np_train_data = preload(train,
                                              os.path.join(args.data_dir,
                                                           'images_*/images'))
-    with open(train_file, 'wb') as f:
+    with open(train_data_file, 'wb') as f:
         np.save(f, np_train_data)
-        np.save(f, np_train_labels)
-
     del np_train_data
+
+    with open(train_target_file, 'wb') as f:
+        np.save(f, np_train_labels)
     del np_train_labels
 
 
