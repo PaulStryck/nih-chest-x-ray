@@ -28,15 +28,19 @@ class ChestXRayNPYDataset(Dataset):
     def __init__(
         self,
         file: str,
+        targets: str,
         transform: Optional[Callable] = None,
         target_transform: Optional[Callable] = None,
     ):
         self.transform = transform
         self.target_transform = target_transform
 
-        with open(file, 'rb') as f:
-            self._data    = np.load(f)
+        # with open(file, 'rb') as f:
+            # self._data    = np.load(f)
+            # self._targets = np.load(f, allow_pickle=True).astype(int)
+        with open(targets, 'rb') as f:
             self._targets = np.load(f, allow_pickle=True).astype(int)
+        self._data = np.load(file, mmap_mode='r')
 
     def __len__(self):
         return self._targets.shape[0]
