@@ -108,7 +108,7 @@ class BaseLoss(Enum):
 
 large_conf =  [
     {
-        'name': 'ft_largeres_50_adam_steplr',
+        'name': 'ft_largeres_50_adam_steplr_0',
         'net': BaseNet.LARGERES50,
         'epochs': 10,
         'bs': 64,
@@ -124,10 +124,81 @@ large_conf =  [
             'gamma': 0.5
         },
         'loss': BaseLoss.BCE,
+    },
+    {
+        'name': 'ft_largeres_50_adam_steplr_1',
+        'net': BaseNet.LARGERES50,
+        'epochs': 10,
+        'bs': 64,
+        'callback': None,
+        'optim': {
+            'type': BaseOptimizer.ADAM,
+            'lr': 1e-4,
+            'betas': (0.9, 0.999)
+        },
+        'scheduler': {
+            'type': BaseScheduler.STEPLR,
+            'step_size': 2,
+            'gamma': 0.5
+        },
+        'loss': BaseLoss.BCE,
+    },
+    {
+        'name': 'ft_largeres_50_adam_exponential',
+        'net': BaseNet.LARGERES50,
+        'epochs': 10,
+        'bs': 64,
+        'callback': None,
+        'optim': {
+            'type': BaseOptimizer.ADAM,
+            'lr': 1e-3,
+            'betas': (0.9, 0.999)
+        },
+        'scheduler': {
+            'type': BaseScheduler.EXPONENTIAL,
+            'gamma': 0.1
+        },
+        'loss': BaseLoss.BCE,
     }
 ]
 
 conf = [
+    {
+        'name': 'ft_resnet_50_adam_steplr_0',
+        'net' : BaseNet.RESNET_50,
+        'epochs': 10,
+        'bs': 64,
+        'callback': None,
+        'optim': {
+            'type': BaseOptimizer.ADAM,
+            'lr': 1e-4,
+            'betas': (0.9, 0.999)
+        },
+        'scheduler': {
+            'type': BaseScheduler.STEPLR,
+            'step_size': 2,
+            'gamma': 0.5
+        },
+        'loss': BaseLoss.BCE
+    },
+    {
+        'name': 'ft_resnet_50_adam_steplr_1',
+        'net' : BaseNet.RESNET_50,
+        'epochs': 10,
+        'bs': 64,
+        'callback': None,
+        'optim': {
+            'type': BaseOptimizer.ADAM,
+            'lr': 5e-4,
+            'betas': (0.9, 0.999)
+        },
+        'scheduler': {
+            'type': BaseScheduler.STEPLR,
+            'step_size': 2,
+            'gamma': 0.5
+        },
+        'loss': BaseLoss.BCE
+    },
     {
         'name': 'ft_resnet_50_adam_exponential',
         'net' : BaseNet.RESNET_50,
