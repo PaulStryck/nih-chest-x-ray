@@ -189,7 +189,7 @@ def run(device: str,
                                      log_interval    = log_interval)
         print('ROC_AUC_SCORE: {}'.format(roc))
         print('AVG Loss in validation set: {}'.format(avg_loss))
-        print(mean([v for (k, v) in roc if k != 'none']))
+        print(mean([v for (k, v) in roc.items() if k != 'none']))
 
         if isinstance(scheduler, ReduceLROnPlateau):
             scheduler.step(avg_loss)

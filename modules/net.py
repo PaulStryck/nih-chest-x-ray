@@ -38,14 +38,32 @@ def get_effnet_b0(num_classes):
     return model
 
 def get_googlenet(num_classes, pretrained = True):
-    return models.googlenet(pretrained  = pretrained,
-                            progress    = True,
-                            num_classes = num_classes)
+    if pretrained:
+        model = models.googlenet(pretrained  = pretrained,
+                                 progress    = True)
+        # change the last linear layer
+        num_ftrs = model.fc.in_features
+        model.fc = nn.Linear(num_ftrs, num_classes)
+    else:
+        model = models.googlenet(pretrained  = pretrained,
+                                 progress    = True,
+                                 num_classes = num_classes)
+
+    return model
 
 def get_densenet161(num_classes, pretrained = True):
-    return models.densenet161(pretrained  = pretrained,
-                              progress    = True,
-                              num_classes = num_classes)
+    if pretrained:
+        model = models.densenet161(pretrained  = pretrained,
+                                   progress    = True)
+        # change the last linear layer
+        num_ftrs = model.classifier.in_features
+        model.classifier = nn.Linear(num_ftrs, num_classes)
+    else:
+        model = models.densenet161(pretrained  = pretrained,
+                                   progress    = True,
+                                   num_classes = num_classes)
+
+    return model
 
 def get_model(num_classes):
     return get_resnet_50(num_classes)

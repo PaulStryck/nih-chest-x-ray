@@ -44,7 +44,65 @@ class BaseLoss(Enum):
     HAMMING = 3
 
 
+# use Optimizer.add_param_group() in callback for finetuning
+
 conf = [
+    {
+        'name': 'ft_dense161_adam_steplr_0',
+        'net': BaseNet.DENSENET161,
+        'epochs': 10,
+        'bs': 128,
+        'callback': None,
+        'optim': {
+            'type': BaseOptimizer.ADAM,
+            'lr': 5e-4,
+            'betas': (0.9, 0.999)
+        },
+        'scheduler': {
+            'type': BaseScheduler.STEPLR,
+            'step_size': 2,
+            'gamma': 0.5
+        },
+        'loss': BaseLoss.BCE,
+    },
+    {
+        'name': 'ft_googlenet_adam_steplr_2',
+        'net': BaseNet.GOOGLENET,
+        'epochs': 10,
+        'bs': 128,
+        'callback': None,
+        'optim': {
+            'type': BaseOptimizer.ADAM,
+            'lr': 5e-4,
+            'betas': (0.9, 0.999)
+        },
+        'scheduler': {
+            'type': BaseScheduler.STEPLR,
+            'step_size': 2,
+            'gamma': 0.5
+        },
+        'loss': BaseLoss.BCE,
+        'scratch': False
+    },
+    {
+        'name': 'ft_googlenet_adam_steplr_1',
+        'net': BaseNet.GOOGLENET,
+        'epochs': 10,
+        'bs': 128,
+        'callback': None,
+        'optim': {
+            'type': BaseOptimizer.ADAM,
+            'lr': 1e-4,
+            'betas': (0.9, 0.999)
+        },
+        'scheduler': {
+            'type': BaseScheduler.STEPLR,
+            'step_size': 5,
+            'gamma': 0.5
+        },
+        'loss': BaseLoss.BCE,
+        'scratch': False
+    },
     {
         'name': 'ft_googlenet_adam_steplr',
         'net': BaseNet.GOOGLENET,
@@ -61,13 +119,14 @@ conf = [
             'step_size': 5,
             'gamma': 0.5
         },
-        'loss': BaseLoss.BCE
+        'loss': BaseLoss.BCE,
+        'scratch': False
     },
     {
         'name': 'ft_resnet_34_adam_steplr',
         'net': BaseNet.RESNET_34,
         'epochs': 5,
-        'bs': 1,
+        'bs': 128,
         'callback': None,
         'optim': {
             'type': BaseOptimizer.ADAM,
@@ -112,7 +171,7 @@ def run_conf(
     elif config['net'] == BaseNet.EFFNET_B7:
         model = net.get_effnet_b7(num_classes)
     elif config['net'] == BaseNet.GOOGLENET:
-        model = net.get_googlenet(num_clases,
+        model = net.get_googlenet(num_classes,
                                   pretrained = pretrained)
     elif config['net'] == BaseNet.DENSENET161:
         model = net.get_densenet161(num_classes,
