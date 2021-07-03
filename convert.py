@@ -83,8 +83,10 @@ def preload(df: pd.DataFrame, img_dir: str, size: int, rgb: bool):
         img_tr = transform(img)
 
         _data.append(np.array(img_tr))
-        print(conversion)
         _labels.append(row[2:18].values)
+
+        # remove image when done
+        os.remove(img_path[0])
 
     return np.array(_labels), np.array(_data)
 
