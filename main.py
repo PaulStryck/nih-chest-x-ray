@@ -143,7 +143,7 @@ conf = [
             'type': BaseScheduler.EXPONENTIAL,
             'gamma': 0.1
         },
-        'loss' BaseLoss.BCE
+        'loss': BaseLoss.BCE
     },
     {
         'name': 'ft_dense161_adam_steplr_0',
