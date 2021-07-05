@@ -1,6 +1,7 @@
 import argparse
 import glob
 import os
+from npy_append_array import NpyAppendArray
 
 import numpy as np
 import pandas as pd
@@ -63,12 +64,20 @@ def parse_csv(root: str, rel_label_file: str, rel_test_list: str, frac: float):
     return (_data_test, _data_train)
 
 
-def preload(df: pd.DataFrame, img_dir: str, size: int, rgb: bool):
+def preload(df: pd.DataFrame,
+        img_dir: str,
+        size: int,
+        rgb: bool,
+        data_file,
+        target_file):
     _labels = []
     _data   = []
 
     # L for greyscale
     conversion = 'RGB' if rgb else 'L'
+
+    npa_data = NpyAppendArray(data_file)
+    npa_targ = NpyAppendArray(target_file)
 
     for idx, row in df.iterrows():
         print('Progress: {}'.format(idx))
@@ -82,13 +91,16 @@ def preload(df: pd.DataFrame, img_dir: str, size: int, rgb: bool):
 
         img_tr = transform(img)
 
-        _data.append(np.array(img_tr))
-        _labels.append(row[2:18].values)
+        npa_data.append(np.array(img_tr))
+        targets = list(row[2:18].to_numpy().astype(int))
+        npa_targ.append(np.array(targets))
+
+        del img_tr
 
         # remove image when done
-        os.remove(img_path[0])
+        # os.remove(img_path[0])
 
-    return np.array(_labels), np.array(_data)
+    # return np.array(_labels), np.array(_data)
 
 
 def main():
@@ -113,31 +125,19 @@ def main():
                             rel_test_list  = args.file_test,
                             frac           = args.frac)
     print(args.rgb)
-    np_test_labels, np_test_data = preload(test,
-                                           os.path.join(args.data_dir,
-                                                        'images_*/images'),
-                                           args.size,
-                                           args.rgb)
-    with open(test_data_file, 'wb') as f:
-        np.save(f, np_test_data)
-    del np_test_data
+    preload(test,
+            os.path.join(args.data_dir, 'images_*/images'),
+            args.size,
+            args.rgb,
+            test_data_file,
+            test_target_file)
 
-    with open(test_target_file, 'wb') as f:
-        np.save(f, np_test_labels)
-    del np_test_labels
-
-    np_train_labels, np_train_data = preload(train,
-                                             os.path.join(args.data_dir,
-                                                          'images_*/images'),
-                                           args.size,
-                                           args.rgb)
-    with open(train_data_file, 'wb') as f:
-        np.save(f, np_train_data)
-    del np_train_data
-
-    with open(train_target_file, 'wb') as f:
-        np.save(f, np_train_labels)
-    del np_train_labels
+    preload(train,
+            os.path.join(args.data_dir, 'images_*/images'),
+            args.size,
+            args.rgb,
+            train_data_file,
+            train_target_file)
 
 
 
