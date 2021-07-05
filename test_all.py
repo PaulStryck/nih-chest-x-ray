@@ -10,12 +10,18 @@ from modules import net, collate
 from modules.dataset import ChestXRayNPYDataset
 
 class Network(Enum):
+    RESNET_34 = 0
     RESNET_50 = 1
     EFFNET_b0 = 2
     EFFNET_b7 = 3
+    GOOGLENET = 4
+    DENSENET  = 5
 
 
 def load_network(net_type: Network):
+    if net_type =) Network.RESNET_34:
+        return net.get_resnet_34(15)
+
     if net_type == Network.RESNET_50:
         return net.get_resnet_50(15)
 
@@ -25,10 +31,16 @@ def load_network(net_type: Network):
     if net_type == Network.EFFNET_b7:
         return net.get_effnet_b7(15)
 
+    if net_type == Network.GOOGLENET:
+        return net.get_googlenet(15)
+
+    if net_type == Network.DENSENET:
+        return net.get_densenet161(15)
+
 def test_model(model, test_data_loader, device):
     targets     = []
     predictions = []
-    
+
     model.to(device)
     model.eval()
     with torch.no_grad():
@@ -85,14 +97,21 @@ def main(args):
 
         base_name = os.path.basename(d)
 
-        if 'resnet_50' in base_name:
+        if 'resnet_34' in base_name:
+            net_type = Network.RESNET_34
+        elif 'resnet_50' in base_name:
             net_type = Network.RESNET_50
         elif 'effnet_b0' in base_name:
             net_type = Network.EFFNET_b0
         elif 'effnet_b7' in base_name:
             net_type = Network.EFFNET_b7
+        elif 'googlenet' in base_name:
+            net_type = Network.GOOGLENET
+        elif 'dense161' in base_name:
+            net_type = Network.DENSENET
         else:
-            raise ValueError("Network type unknown for {}".format(base_name))
+            continue
+            # raise ValueError("Network type unknown for {}".format(base_name))
 
         model = load_network(net_type)
 
