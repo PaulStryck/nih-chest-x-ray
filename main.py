@@ -162,6 +162,8 @@ large_conf =  [
     }
 ]
 
+
+
 conf = [
     {
         'name': 'ft_resnet_50_adam_steplr_0',
@@ -181,24 +183,59 @@ conf = [
         },
         'loss': BaseLoss.BCE
     },
-    {
-        'name': 'ft_resnet_50_adam_steplr_1',
-        'net' : BaseNet.RESNET_50,
-        'epochs': 10,
-        'bs': 64,
-        'callback': None,
-        'optim': {
-            'type': BaseOptimizer.ADAM,
-            'lr': 5e-4,
-            'betas': (0.9, 0.999)
-        },
-        'scheduler': {
-            'type': BaseScheduler.STEPLR,
-            'step_size': 2,
-            'gamma': 0.5
-        },
-        'loss': BaseLoss.BCE
-    },
+#    {
+#        'name': 'ft_resnet_50_adam_steplr_1',
+#        'net' : BaseNet.RESNET_50,
+#        'epochs': 10,
+#        'bs': 64,
+#        'callback': None,
+#        'optim': {
+#            'type': BaseOptimizer.ADAM,
+#            'lr': 5e-4,
+#            'betas': (0.9, 0.999)
+#        },
+#        'scheduler': {
+#            'type': BaseScheduler.STEPLR,
+#            'step_size': 2,
+#            'gamma': 0.5
+#        },
+#        'loss': BaseLoss.BCE
+#    },
+#    {
+#        'name': 'ft_resnet_50_sgd_steplr',
+#        'net' : BaseNet.RESNET_50,
+#        'epochs': 10,
+#        'bs': 64,
+#        'callback': None,
+#        'optim': {
+#            'type': BaseOptimizer.SGD,
+#            'lr': 1e-3,
+#            'momentum': 0.9
+#        },
+#        'scheduler': {
+#            'type': BaseScheduler.STEPLR,
+#            'step_size': 2,
+#            'gamma': 0.5
+#        },
+#        'loss': BaseLoss.BCE
+#    },
+#    {
+#        'name': 'ft_resnet_50_sgd_exponential',
+#        'net' : BaseNet.RESNET_50,
+#        'epochs': 10,
+#        'bs': 64,
+#        'callback': None,
+#        'optim': {
+#            'type': BaseOptimizer.SGD,
+#            'lr': 1e-3,
+#            'momentum': 0.9
+#        },
+#        'scheduler': {
+#            'type': BaseScheduler.EXPONENTIAL,
+#            'gamma': 0.1
+#        },
+#        'loss': BaseLoss.BCE
+#    },
     {
         'name': 'ft_resnet_50_adam_exponential',
         'net' : BaseNet.RESNET_50,
@@ -220,7 +257,7 @@ conf = [
         'name': 'ft_dense161_adam_steplr_0',
         'net': BaseNet.DENSENET161,
         'epochs': 10,
-        'bs': 32,
+        'bs': 16,
         'callback': None,
         'optim': {
             'type': BaseOptimizer.ADAM,
@@ -272,25 +309,25 @@ conf = [
         'loss': BaseLoss.BCE,
         'scratch': False
     },
-    {
-        'name': 'ft_googlenet_adam_steplr',
-        'net': BaseNet.GOOGLENET,
-        'epochs': 7,
-        'bs': 128,
-        'callback': None,
-        'optim': {
-            'type': BaseOptimizer.ADAM,
-            'lr': 5e-4,
-            'betas': (0.9, 0.999)
-        },
-        'scheduler': {
-            'type': BaseScheduler.STEPLR,
-            'step_size': 5,
-            'gamma': 0.5
-        },
-        'loss': BaseLoss.BCE,
-        'scratch': False
-    },
+#    {
+#        'name': 'ft_googlenet_adam_steplr',
+#        'net': BaseNet.GOOGLENET,
+#        'epochs': 7,
+#        'bs': 128,
+#        'callback': None,
+#        'optim': {
+#            'type': BaseOptimizer.ADAM,
+#            'lr': 5e-4,
+#            'betas': (0.9, 0.999)
+#        },
+#        'scheduler': {
+#            'type': BaseScheduler.STEPLR,
+#            'step_size': 5,
+#            'gamma': 0.5
+#        },
+#        'loss': BaseLoss.BCE,
+#        'scratch': False
+#    },
     {
         'name': 'ft_resnet_34_adam_steplr',
         'net': BaseNet.RESNET_34,
@@ -387,8 +424,8 @@ def run_conf(
     elif config['optim']['type'] == BaseOptimizer.SGD:
         trainer.optimizer  = optim.SGD(
             filter(lambda p: p.requires_grad, model.parameters()),
-            lr = config['lr'],
-            momentum = config['momentum']
+            lr = config['optim']['lr'],
+            momentum = config['optim']['momentum']
         )
     else:
         raise ValueError('Optimzer {} not defined'.format(config['optim']['type']))
