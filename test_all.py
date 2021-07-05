@@ -87,6 +87,7 @@ def test_all(base_dir, model, test_data_loader, device):
 
 def main(args):
     data_test   = ChestXRayNPYDataset(file      = args.data_test,
+                                      targets   = args.targets_test,
                                       transform = None)
     test_loader = torch.utils.data.DataLoader(data_test,
                                               batch_size = args.test_bs,
@@ -123,6 +124,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--data-test', type = str)
+    parser.add_argument('--targets-test', type = str)
     parser.add_argument('--base-dir', type = str)
     parser.add_argument('--test-bs', type = int, default = 64, help = 'test batch size')
     parser.add_argument('--device', type = str, default = 'cpu', help = 'Force usage of device')
